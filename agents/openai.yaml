@@ -1,0 +1,7 @@
+interface:
+  display_name: "Codex Memory"
+  short_description: "Cross-session memory workflow for Codex"
+  default_prompt: "Use $codex-memory to retrieve or persist durable cross-session memory for this task."
+
+policy:
+  allow_implicit_invocation: true

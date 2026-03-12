@@ -1,0 +1,33 @@
+{
+  "name": "codex-memory",
+  "version": "0.1.0",
+  "description": "Cross-session memory skill for Codex with a lazy-start daemon, CLI, and qmd adapter.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "codex-memory": "./dist/scripts/codex-memory.js"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "files": [
+    "SKILL.md",
+    "agents",
+    "dist",
+    "references",
+    "LICENSE",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "npx tsc -p tsconfig.json",
+    "typecheck": "npx tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test dist/tests/*.test.js",
+    "smoke": "npm run build && node ./dist/scripts/quick-validate.js",
+    "validate": "npm run typecheck && npm run test",
+    "daemon": "node ./dist/scripts/codex-memory.js daemon run"
+  },
+  "devDependencies": {
+    "@types/node": "^25.4.0",
+    "typescript": "^5.9.3"
+  }
+}
