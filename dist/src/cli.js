@@ -125,8 +125,14 @@ function formatContext(result) {
     const projectId = typeof result.projectId === "string" ? result.projectId : "";
     const project = Array.isArray(result.project) ? result.project : [];
     const global = Array.isArray(result.global) ? result.global : [];
-    const projectLines = project.map((item) => `- [project] ${item.id || ""} ${item.summary || ""}`);
-    const globalLines = global.map((item) => `- [global] ${item.id || ""} ${item.summary || ""}`);
+    const projectLines = project.map((item) => {
+        const candidate = item;
+        return `- [project/${candidate.kind || "memory"}/${candidate.retrieval || "context"}] ${candidate.id || ""} ${candidate.summary || ""}`;
+    });
+    const globalLines = global.map((item) => {
+        const candidate = item;
+        return `- [global/${candidate.kind || "memory"}/${candidate.retrieval || "context"}] ${candidate.id || ""} ${candidate.summary || ""}`;
+    });
     return [`project_id=${projectId}`, ...projectLines, ...globalLines].join("\n");
 }
 function formatSearch(result) {
@@ -134,7 +140,7 @@ function formatSearch(result) {
     return results
         .map((item) => {
         const candidate = item;
-        return `- ${candidate.id || ""} ${candidate.summary || candidate.file_path || ""}`.trim();
+        return `- [${candidate.kind || "memory"}/${candidate.retrieval || "query"}] ${candidate.id || ""} ${candidate.summary || candidate.file_path || ""}`.trim();
     })
         .join("\n");
 }
@@ -172,7 +178,9 @@ export async function main(argv) {
             "  daemon run|ensure|status|heartbeat|stop",
             "  context --cwd <path> [--query <text>] [--json]",
             "  search --cwd <path> --query <text> [--scope auto|global|project] [--json]",
-            "  capture --cwd <path> --summary <text> [--body <text>] [--kind <type>] [--scope auto|global|project] [--json]",
+            "  capture --cwd <path> --summary <text> [--body <text>] [--kind <type>] [--scope auto|global|project]",
+            "    [--lifecycle active|review|stale|expired] [--sensitivity public|internal|sensitive|secret]",
+            "    [--retrieval always|context|query|fallback|manual] [--json]",
             "  promote --id <memory-id> [--json]",
             "  dismiss --id <memory-id> [--json]",
             "  supersede --id <old-id> --by <new-id> [--json]",
@@ -263,6 +271,9 @@ export async function main(argv) {
                 summary: readStringArg(parsed.args, "summary"),
                 body: readStringArg(parsed.args, "body"),
                 kind: readStringArg(parsed.args, "kind"),
+                lifecycle: readStringArg(parsed.args, "lifecycle"),
+                sensitivity: readStringArg(parsed.args, "sensitivity"),
+                retrieval: readStringArg(parsed.args, "retrieval"),
                 scope: readStringArg(parsed.args, "scope", "auto"),
                 threadId: readStringArg(parsed.args, "threadId"),
                 title: readStringArg(parsed.args, "title", path.basename(cwd)),

@@ -1,12 +1,18 @@
 export type MemoryScope = "global" | "project";
 export type RequestedScope = MemoryScope | "auto";
 export type MemoryStatus = "active" | "dismissed" | "superseded";
-export type MemoryKind = "preference" | "decision" | "constraint" | "open_loop" | "glossary";
+export type MemoryKind = "preference" | "decision" | "constraint" | "open_loop" | "glossary" | "fact" | "procedure" | "plan" | "relationship";
+export type MemoryLifecycle = "active" | "review" | "stale" | "expired";
+export type MemorySensitivity = "public" | "internal" | "sensitive" | "secret";
+export type MemoryRetrieval = "always" | "context" | "query" | "fallback" | "manual";
 export interface MemoryCandidate {
     id?: string;
     cwd?: string;
     scope?: RequestedScope;
     kind?: MemoryKind | "";
+    lifecycle?: MemoryLifecycle | "";
+    sensitivity?: MemorySensitivity | "";
+    retrieval?: MemoryRetrieval | "";
     summary: string;
     body?: string;
     threadId?: string;
@@ -18,6 +24,9 @@ export interface MemoryItem {
     scope: MemoryScope;
     projectId: string | null;
     kind: MemoryKind;
+    lifecycle: MemoryLifecycle;
+    sensitivity: MemorySensitivity;
+    retrieval: MemoryRetrieval;
     summary: string;
     body: string;
     confidence: number;
@@ -31,11 +40,12 @@ export interface MemoryItem {
     tags: string[];
     createdAt: number;
     updatedAt: number;
+    reviewAt: number | null;
     expiresAt: number | null;
 }
 export interface RejectedJudgeDecision {
     remember: false;
-    reason: "missing_summary" | "low_signal";
+    reason: "missing_summary" | "low_signal" | "secret_detected";
 }
 export interface AcceptedJudgeDecision {
     remember: true;
@@ -48,6 +58,10 @@ export interface QmdSearchResult extends Record<string, unknown> {
     score?: number;
     snippet?: string;
     summary?: string;
+    kind?: MemoryKind;
+    lifecycle?: MemoryLifecycle;
+    sensitivity?: MemorySensitivity;
+    retrieval?: MemoryRetrieval;
 }
 export interface DaemonEndpoint {
     transport: "tcp";
@@ -70,6 +84,9 @@ export interface CaptureArgs extends SearchArgs {
     summary: string;
     body?: string;
     kind?: MemoryKind | "";
+    lifecycle?: MemoryLifecycle | "";
+    sensitivity?: MemorySensitivity | "";
+    retrieval?: MemoryRetrieval | "";
     threadId?: string;
     title?: string;
 }

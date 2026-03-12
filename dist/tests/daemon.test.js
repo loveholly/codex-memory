@@ -28,6 +28,8 @@ test("daemon dispatch captures, searches, and dismisses without binding a listen
         assert.equal(capture.ok, true);
         const captureRecord = capture;
         assert.equal(captureRecord.skipped, false);
+        assert.equal(captureRecord.item?.kind, "procedure");
+        assert.equal(captureRecord.item?.retrieval, "context");
         const context = await daemon.dispatch({
             command: "context",
             args: {
@@ -49,6 +51,7 @@ test("daemon dispatch captures, searches, and dismisses without binding a listen
         assert.equal(searchRecord.source, "qmd");
         assert.equal(Array.isArray(searchRecord.results), true);
         assert.equal(searchRecord.results.length, 1);
+        assert.equal((searchRecord.results[0] || {}).retrieval, "context");
         const itemId = captureRecord.item?.id || "";
         const dismiss = await daemon.dispatch({
             command: "dismiss",

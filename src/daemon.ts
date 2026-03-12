@@ -27,6 +27,33 @@ export interface ContextResponse {
 
 type DaemonResponse = Record<string, unknown> | ContextResponse | SearchResponse;
 
+function qmdPrimaryRetrievalAllowed(item: MemoryItem): boolean {
+  return item.status === "active" && item.lifecycle !== "expired" && item.retrieval !== "fallback" && item.retrieval !== "manual";
+}
+
+function enrichQmdResults(results: QmdSearchResult[], items: MemoryItem[]): QmdSearchResult[] {
+  const byId = new Map(items.map((item) => [item.id, item]));
+
+  return results.flatMap((result) => {
+    const id = typeof result.id === "string" ? result.id : "";
+    const item = byId.get(id);
+    if (!item || !qmdPrimaryRetrievalAllowed(item)) {
+      return [];
+    }
+
+    return [
+      {
+        ...result,
+        kind: item.kind,
+        lifecycle: item.lifecycle,
+        sensitivity: item.sensitivity,
+        retrieval: item.retrieval,
+        summary: result.summary || item.summary
+      }
+    ];
+  });
+}
+
 function readLimit(value: number | string | undefined, fallback: number): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -231,14 +258,23 @@ export class MemoryDaemon {
     });
 
     if (qmdSearch.ok && !qmdSearch.skipped && qmdSearch.results.length > 0) {
-      return { ok: true, source: "qmd", projectId, results: qmdSearch.results };
+      const resultIds = qmdSearch.results
+        .map((result) => (typeof result.id === "string" ? result.id : ""))
+        .filter((id) => id.length > 0);
+      const items = this.store.getItems(resultIds);
+      const filteredResults = enrichQmdResults(qmdSearch.results, items);
+
+      if (filteredResults.length > 0) {
+        return { ok: true, source: "qmd", projectId, results: filteredResults };
+      }
     }
 
     const results = this.store.search({
       query: args.query || "",
       scope,
       projectId,
-      limit: readLimit(args.limit, 8)
+      limit: readLimit(args.limit, 8),
+      includeFallback: true
     });
 
     return {

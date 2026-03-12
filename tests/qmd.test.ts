@@ -14,6 +14,9 @@ function makeItem(tempRoot: string): MemoryItem {
     scope: "project",
     projectId: "repo-1",
     kind: "decision",
+    lifecycle: "active",
+    sensitivity: "internal",
+    retrieval: "context",
     summary: "Label workflow memory",
     body: "Labels should keep detail context synchronized across sessions.",
     confidence: 0.9,
@@ -27,6 +30,7 @@ function makeItem(tempRoot: string): MemoryItem {
     tags: ["labels", "workflow"],
     createdAt: 1,
     updatedAt: 2,
+    reviewAt: null,
     expiresAt: null
   };
 }

@@ -34,6 +34,7 @@ Capture only when the conversation produced something that should survive sessio
 - durable decisions
 - constraints and guardrails
 - open loops that must be resumed later
+- reusable procedures and facts
 
 Run:
 
@@ -47,7 +48,9 @@ node "<skill-dir>/dist/scripts/codex-memory.js" capture \
 ```
 
 - Default to `--scope auto`. The daemon will judge `global` vs `project`.
-- Use `--kind preference|decision|constraint|open_loop|glossary` when you know the type.
+- Use `--kind preference|decision|constraint|open_loop|glossary|fact|procedure|plan|relationship` when you know the type.
+- You can also override `--lifecycle`, `--sensitivity`, and `--retrieval` when the automatic judge needs a stronger hint.
+- `secret` content is rejected instead of being stored.
 
 ### 3) Keep the daemon warm during long work
 

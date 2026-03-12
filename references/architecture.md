@@ -28,6 +28,24 @@
 - `project`: cwd-bound decisions, project architecture, open loops, local terminology.
 - `drop`: low-signal or transient conversation output.
 
+## Memory Ontology
+
+Every persisted memory now carries four semantic layers:
+
+- `kind`: `preference`, `decision`, `constraint`, `open_loop`, `glossary`, `fact`, `procedure`, `plan`, `relationship`
+- `lifecycle`: `active`, `review`, `stale`, `expired`
+- `sensitivity`: `public`, `internal`, `sensitive`, `secret`
+- `retrieval`: `always`, `context`, `query`, `fallback`, `manual`
+
+Operational notes:
+
+- `secret` candidates are rejected instead of being stored.
+- `always` and `context` memories are eligible for default context loading.
+- `query` memories stay out of the default context bundle but remain searchable.
+- `fallback` memories are only returned after primary qmd retrieval produces no acceptable hit.
+- `manual` memories stay in the canonical store and backups, but are not auto-loaded or auto-searched.
+- `expired` memories remain in SQLite for audit/history, but are excluded from automatic retrieval.
+
 ## Built-in qmd Layer
 
 `qmd` is provided by the real upstream `@tobilu/qmd` dependency and is installed transitively with this package. Users do not need a separate `qmd` binary, external service, or manual install step.

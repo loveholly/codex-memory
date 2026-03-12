@@ -16,8 +16,10 @@ export interface ContextItems {
 export declare class MemoryStore {
     private readonly db;
     constructor(dbPath: string);
+    private migrateMemoryItems;
     close(): void;
     getItem(id: string): MemoryItem | null;
+    getItems(ids: string[]): MemoryItem[];
     listContext(input: {
         projectId: string | null;
         limit?: number;
@@ -27,6 +29,7 @@ export declare class MemoryStore {
         scope?: "auto" | "global" | "project";
         projectId: string | null;
         limit?: number;
+        includeFallback?: boolean;
     }): MemoryItem[];
     exportData(): MemoryBackupData;
     remember(item: MemoryItem): MemoryItem;

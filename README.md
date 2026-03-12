@@ -5,6 +5,7 @@
 - lazy-start daemon
 - idle shutdown
 - project/global memory scopes
+- multi-dimensional memory typing across `kind`, `lifecycle`, `sensitivity`, and `retrieval`
 - packaged `@tobilu/qmd` indexing and search
 - TypeScript source, compiled `dist/` runtime, and tests
 
@@ -39,9 +40,27 @@ node ~/.codex/skills/codex-memory/dist/scripts/codex-memory.js capture \
   --cwd "$PWD" \
   --scope auto \
   --kind decision \
+  --retrieval context \
   --summary "Use packaged qmd indexing for memory search" \
   --body "Users should not install or configure qmd separately."
 ```
+
+Useful capture dimensions:
+
+- `--kind preference|decision|constraint|open_loop|glossary|fact|procedure|plan|relationship`
+- `--lifecycle active|review|stale|expired`
+- `--sensitivity public|internal|sensitive|secret`
+- `--retrieval always|context|query|fallback|manual`
+
+What the daemon decides automatically when you omit those flags:
+
+- `scope`: `global` vs `project`
+- `kind`: what type of durable memory this is
+- `lifecycle`: whether it should stay active, be reviewed, or only be used as stale fallback
+- `sensitivity`: whether it is safe for normal retrieval
+- `retrieval`: always-load vs context vs query-only vs fallback-only
+
+`secret` material is rejected instead of being persisted.
 
 Keep the daemon warm during long sessions:
 

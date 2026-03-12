@@ -17,6 +17,9 @@ function rowToItem(row) {
         scope: row.scope,
         projectId: row.project_id,
         kind: row.kind,
+        lifecycle: row.lifecycle || "active",
+        sensitivity: row.sensitivity || "internal",
+        retrieval: row.retrieval || "context",
         summary: row.summary,
         body: row.body,
         confidence: row.confidence,
@@ -30,6 +33,7 @@ function rowToItem(row) {
         tags: jsonParseTags(row.tags_json),
         createdAt: row.created_at,
         updatedAt: row.updated_at,
+        reviewAt: row.review_at,
         expiresAt: row.expires_at
     };
 }
@@ -48,18 +52,33 @@ function scopeClause(input) {
     }
     return { sql: "scope = 'global'", params: [] };
 }
+function placeholders(count) {
+    return new Array(count).fill("?").join(", ");
+}
+function contextRetrievals() {
+    return ["always", "context"];
+}
+function searchRetrievals(includeFallback) {
+    const values = ["always", "context", "query"];
+    if (includeFallback) {
+        values.push("fallback");
+    }
+    return values;
+}
 export class MemoryStore {
     db;
     constructor(dbPath) {
         this.db = new DatabaseSync(dbPath);
+        this.db.exec("PRAGMA journal_mode = WAL;");
         this.db.exec(`
-      PRAGMA journal_mode = WAL;
-
       CREATE TABLE IF NOT EXISTS memory_items (
         id TEXT PRIMARY KEY,
         scope TEXT NOT NULL,
         project_id TEXT,
         kind TEXT NOT NULL,
+        lifecycle TEXT NOT NULL DEFAULT 'active',
+        sensitivity TEXT NOT NULL DEFAULT 'internal',
+        retrieval TEXT NOT NULL DEFAULT 'context',
         summary TEXT NOT NULL,
         body TEXT NOT NULL DEFAULT '',
         confidence REAL NOT NULL,
@@ -73,14 +92,9 @@ export class MemoryStore {
         tags_json TEXT NOT NULL DEFAULT '[]',
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL,
+        review_at INTEGER,
         expires_at INTEGER
       );
-
-      CREATE INDEX IF NOT EXISTS idx_memory_items_scope_status
-      ON memory_items (scope, project_id, status, updated_at DESC);
-
-      CREATE INDEX IF NOT EXISTS idx_memory_items_dedupe
-      ON memory_items (dedupe_key, status);
 
       CREATE TABLE IF NOT EXISTS memory_links (
         src_id TEXT NOT NULL,
@@ -88,10 +102,32 @@ export class MemoryStore {
         rel TEXT NOT NULL,
         created_at INTEGER NOT NULL
       );
+    `);
+        this.migrateMemoryItems();
+        this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_memory_items_scope_status
+      ON memory_items (scope, project_id, status, retrieval, updated_at DESC);
+
+      CREATE INDEX IF NOT EXISTS idx_memory_items_dedupe
+      ON memory_items (dedupe_key, status);
 
       CREATE INDEX IF NOT EXISTS idx_memory_links_src
       ON memory_links (src_id, rel);
     `);
+    }
+    migrateMemoryItems() {
+        const columns = new Set(this.db.prepare("PRAGMA table_info(memory_items)").all().map((row) => row.name));
+        const migrations = [
+            { column: "lifecycle", sql: "ALTER TABLE memory_items ADD COLUMN lifecycle TEXT NOT NULL DEFAULT 'active'" },
+            { column: "sensitivity", sql: "ALTER TABLE memory_items ADD COLUMN sensitivity TEXT NOT NULL DEFAULT 'internal'" },
+            { column: "retrieval", sql: "ALTER TABLE memory_items ADD COLUMN retrieval TEXT NOT NULL DEFAULT 'context'" },
+            { column: "review_at", sql: "ALTER TABLE memory_items ADD COLUMN review_at INTEGER" }
+        ];
+        for (const migration of migrations) {
+            if (!columns.has(migration.column)) {
+                this.db.exec(migration.sql);
+            }
+        }
     }
     close() {
         this.db.close();
@@ -100,25 +136,47 @@ export class MemoryStore {
         const statement = this.db.prepare("SELECT * FROM memory_items WHERE id = ?");
         return rowToItem(statement.get(id));
     }
+    getItems(ids) {
+        const uniqueIds = [...new Set(ids.filter((id) => id.trim().length > 0))];
+        if (uniqueIds.length === 0) {
+            return [];
+        }
+        const rows = this.db
+            .prepare(`SELECT * FROM memory_items WHERE id IN (${placeholders(uniqueIds.length)})`)
+            .all(...uniqueIds);
+        const byId = new Map(rows
+            .map((row) => rowToItem(row))
+            .filter((item) => item !== null)
+            .map((item) => [item.id, item]));
+        return uniqueIds.map((id) => byId.get(id)).filter((item) => item !== undefined);
+    }
     listContext(input) {
         const limit = input.limit ?? 5;
+        const allowed = contextRetrievals();
         const globalRows = this.db
             .prepare(`
           SELECT * FROM memory_items
-          WHERE status = 'active' AND scope = 'global'
-          ORDER BY importance DESC, updated_at DESC
+          WHERE status = 'active'
+            AND lifecycle != 'expired'
+            AND scope = 'global'
+            AND retrieval IN (${placeholders(allowed.length)})
+          ORDER BY CASE retrieval WHEN 'always' THEN 0 ELSE 1 END, importance DESC, updated_at DESC
           LIMIT ?
         `)
-            .all(limit);
+            .all(...allowed, limit);
         const projectRows = input.projectId
             ? this.db
                 .prepare(`
               SELECT * FROM memory_items
-              WHERE status = 'active' AND scope = 'project' AND project_id = ?
-              ORDER BY importance DESC, updated_at DESC
+              WHERE status = 'active'
+                AND lifecycle != 'expired'
+                AND scope = 'project'
+                AND project_id = ?
+                AND retrieval IN (${placeholders(allowed.length)})
+              ORDER BY CASE retrieval WHEN 'always' THEN 0 ELSE 1 END, importance DESC, updated_at DESC
               LIMIT ?
             `)
-                .all(input.projectId, limit)
+                .all(input.projectId, ...allowed, limit)
             : [];
         return {
             global: globalRows.map((row) => rowToItem(row)).filter((item) => item !== null),
@@ -127,6 +185,7 @@ export class MemoryStore {
     }
     search(input) {
         const clause = scopeClause({ scope: input.scope || "auto", projectId: input.projectId });
+        const retrievals = searchRetrievals(Boolean(input.includeFallback));
         const limit = input.limit ?? 8;
         const searchText = `%${input.query.toLowerCase()}%`;
         const rows = this.db
@@ -134,16 +193,20 @@ export class MemoryStore {
           SELECT *
           FROM memory_items
           WHERE status = 'active'
+            AND lifecycle != 'expired'
             AND ${clause.sql}
+            AND retrieval IN (${placeholders(retrievals.length)})
             AND (
               lower(summary) LIKE ?
               OR lower(body) LIKE ?
               OR lower(tags_json) LIKE ?
             )
-          ORDER BY importance DESC, updated_at DESC
+          ORDER BY CASE retrieval WHEN 'always' THEN 0 WHEN 'context' THEN 1 WHEN 'query' THEN 2 ELSE 3 END,
+            importance DESC,
+            updated_at DESC
           LIMIT ?
         `)
-            .all(...clause.params, searchText, searchText, searchText, limit);
+            .all(...clause.params, ...retrievals, searchText, searchText, searchText, limit);
         return rows.map((row) => rowToItem(row)).filter((item) => item !== null);
     }
     exportData() {
@@ -189,6 +252,9 @@ export class MemoryStore {
             UPDATE memory_items
             SET
               kind = ?,
+              lifecycle = ?,
+              sensitivity = ?,
+              retrieval = ?,
               summary = ?,
               body = ?,
               confidence = ?,
@@ -199,23 +265,24 @@ export class MemoryStore {
               source_cwd = ?,
               tags_json = ?,
               updated_at = ?,
+              review_at = ?,
               expires_at = ?
             WHERE id = ?
           `)
-                .run(item.kind, item.summary, item.body, item.confidence, item.importance, item.stability, item.sourceThreadId, item.sourceTitle, item.sourceCwd, JSON.stringify(item.tags), item.updatedAt, item.expiresAt, existing.id);
+                .run(item.kind, item.lifecycle, item.sensitivity, item.retrieval, item.summary, item.body, item.confidence, item.importance, item.stability, item.sourceThreadId, item.sourceTitle, item.sourceCwd, JSON.stringify(item.tags), item.updatedAt, item.reviewAt, item.expiresAt, existing.id);
             return this.getItem(existing.id);
         }
         this.db
             .prepare(`
           INSERT INTO memory_items (
-            id, scope, project_id, kind, summary, body,
+            id, scope, project_id, kind, lifecycle, sensitivity, retrieval, summary, body,
             confidence, importance, stability, status, dedupe_key,
             source_thread_id, source_title, source_cwd, tags_json,
-            created_at, updated_at, expires_at
+            created_at, updated_at, review_at, expires_at
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `)
-            .run(item.id, item.scope, item.projectId, item.kind, item.summary, item.body, item.confidence, item.importance, item.stability, item.status, item.dedupeKey, item.sourceThreadId, item.sourceTitle, item.sourceCwd, JSON.stringify(item.tags), item.createdAt, item.updatedAt, item.expiresAt);
+            .run(item.id, item.scope, item.projectId, item.kind, item.lifecycle, item.sensitivity, item.retrieval, item.summary, item.body, item.confidence, item.importance, item.stability, item.status, item.dedupeKey, item.sourceThreadId, item.sourceTitle, item.sourceCwd, JSON.stringify(item.tags), item.createdAt, item.updatedAt, item.reviewAt, item.expiresAt);
         return this.getItem(item.id);
     }
     dismiss(id, timestamp) {

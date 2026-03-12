@@ -155,8 +155,14 @@ function formatContext(result: Record<string, unknown>): string {
   const projectId = typeof result.projectId === "string" ? result.projectId : "";
   const project = Array.isArray(result.project) ? result.project : [];
   const global = Array.isArray(result.global) ? result.global : [];
-  const projectLines = project.map((item) => `- [project] ${(item as { id?: string }).id || ""} ${(item as { summary?: string }).summary || ""}`);
-  const globalLines = global.map((item) => `- [global] ${(item as { id?: string }).id || ""} ${(item as { summary?: string }).summary || ""}`);
+  const projectLines = project.map((item) => {
+    const candidate = item as { id?: string; kind?: string; retrieval?: string; summary?: string };
+    return `- [project/${candidate.kind || "memory"}/${candidate.retrieval || "context"}] ${candidate.id || ""} ${candidate.summary || ""}`;
+  });
+  const globalLines = global.map((item) => {
+    const candidate = item as { id?: string; kind?: string; retrieval?: string; summary?: string };
+    return `- [global/${candidate.kind || "memory"}/${candidate.retrieval || "context"}] ${candidate.id || ""} ${candidate.summary || ""}`;
+  });
   return [`project_id=${projectId}`, ...projectLines, ...globalLines].join("\n");
 }
 
@@ -164,8 +170,8 @@ function formatSearch(result: Record<string, unknown>): string {
   const results = Array.isArray(result.results) ? result.results : [];
   return results
     .map((item) => {
-      const candidate = item as { id?: string; summary?: string; file_path?: string };
-      return `- ${candidate.id || ""} ${candidate.summary || candidate.file_path || ""}`.trim();
+      const candidate = item as { id?: string; kind?: string; retrieval?: string; summary?: string; file_path?: string };
+      return `- [${candidate.kind || "memory"}/${candidate.retrieval || "query"}] ${candidate.id || ""} ${candidate.summary || candidate.file_path || ""}`.trim();
     })
     .join("\n");
 }
@@ -212,7 +218,9 @@ export async function main(argv: string[]): Promise<void> {
         "  daemon run|ensure|status|heartbeat|stop",
         "  context --cwd <path> [--query <text>] [--json]",
         "  search --cwd <path> --query <text> [--scope auto|global|project] [--json]",
-        "  capture --cwd <path> --summary <text> [--body <text>] [--kind <type>] [--scope auto|global|project] [--json]",
+        "  capture --cwd <path> --summary <text> [--body <text>] [--kind <type>] [--scope auto|global|project]",
+        "    [--lifecycle active|review|stale|expired] [--sensitivity public|internal|sensitive|secret]",
+        "    [--retrieval always|context|query|fallback|manual] [--json]",
         "  promote --id <memory-id> [--json]",
         "  dismiss --id <memory-id> [--json]",
         "  supersede --id <old-id> --by <new-id> [--json]",
@@ -319,6 +327,9 @@ export async function main(argv: string[]): Promise<void> {
         summary: readStringArg(parsed.args, "summary"),
         body: readStringArg(parsed.args, "body"),
         kind: readStringArg(parsed.args, "kind"),
+        lifecycle: readStringArg(parsed.args, "lifecycle"),
+        sensitivity: readStringArg(parsed.args, "sensitivity"),
+        retrieval: readStringArg(parsed.args, "retrieval"),
         scope: readStringArg(parsed.args, "scope", "auto"),
         threadId: readStringArg(parsed.args, "threadId"),
         title: readStringArg(parsed.args, "title", path.basename(cwd)),
