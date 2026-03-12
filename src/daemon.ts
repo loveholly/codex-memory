@@ -74,6 +74,7 @@ export class MemoryDaemon {
     }
 
     this.store.close();
+    this.qmd.close();
 
     if (this.server.listening) {
       await new Promise<void>((resolve, reject) => {
@@ -242,7 +243,7 @@ export class MemoryDaemon {
 
     return {
       ok: true,
-      source: qmdSearch.skipped ? "sqlite" : "sqlite_fallback",
+      source: "sqlite_fallback",
       projectId,
       results,
       qmd: qmdSearch

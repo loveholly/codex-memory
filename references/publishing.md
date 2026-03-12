@@ -30,8 +30,9 @@ Bare `npx skills add codex-memory` is not guaranteed by the standard GitHub inst
 ## Release Checklist
 
 1. Run `node scripts/quick-validate.js`.
-1. Run `npm run validate`.
-2. Run `npm run smoke` in an environment that allows local loopback listeners.
-3. Push the repo to GitHub.
-4. Verify the install command against a clean Codex environment.
-5. If you later publish this package to npm for convenience, keep the repo-root skill layout unchanged so `skills add` continues to work.
+2. Run `npm run validate`.
+3. Run `npm run smoke` in an environment that allows local loopback listeners.
+4. Push the repo to GitHub.
+5. Verify the install command against a clean Codex environment.
+6. Push a version tag like `v0.1.0`.
+7. Ensure `NPM_TOKEN` is configured in GitHub Actions secrets so the release workflow can publish to npm and create a GitHub Release.

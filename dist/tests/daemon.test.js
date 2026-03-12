@@ -10,7 +10,6 @@ function makeConfig(tempRoot) {
         ...process.env,
         CODEX_MEMORY_HOME: path.join(tempRoot, "home"),
         CODEX_MEMORY_RUN_DIR: path.join(tempRoot, "run"),
-        CODEX_MEMORY_QMD_ENABLED: "0",
         CODEX_MEMORY_IDLE_MS: "5000"
     });
 }
@@ -47,6 +46,7 @@ test("daemon dispatch captures, searches, and dismisses without binding a listen
             }
         });
         const searchRecord = search;
+        assert.equal(searchRecord.source, "qmd");
         assert.equal(Array.isArray(searchRecord.results), true);
         assert.equal(searchRecord.results.length, 1);
         const itemId = captureRecord.item?.id || "";

@@ -1,0 +1,81 @@
+# codex-memory
+
+`codex-memory` is a publishable Codex skill plus CLI that adds durable cross-session memory with:
+
+- lazy-start daemon
+- idle shutdown
+- project/global memory scopes
+- built-in qmd indexing and search
+- TypeScript source, compiled `dist/` runtime, and tests
+
+No external `qmd` binary, sidecar service, or manual install step is required.
+
+## Install
+
+Skill install:
+
+```bash
+npx skills add loveholly/codex-memory
+```
+
+CLI install from npm after publish:
+
+```bash
+npm install -g codex-memory
+```
+
+## Usage
+
+Load context before substantial work:
+
+```bash
+node ~/.codex/skills/codex-memory/dist/scripts/codex-memory.js context --cwd "$PWD" --query "memory system task" --json
+```
+
+Capture durable outcomes:
+
+```bash
+node ~/.codex/skills/codex-memory/dist/scripts/codex-memory.js capture \
+  --cwd "$PWD" \
+  --scope auto \
+  --kind decision \
+  --summary "Use built-in qmd indexing for memory search" \
+  --body "Users should not install or configure qmd separately."
+```
+
+Keep the daemon warm during long sessions:
+
+```bash
+node ~/.codex/skills/codex-memory/dist/scripts/codex-memory.js daemon heartbeat
+```
+
+## Development
+
+```bash
+npm install
+npm run validate
+npm run smoke
+```
+
+`npm run smoke` requires an environment that allows local loopback listeners.
+
+## Release
+
+This repo ships two things:
+
+- the GitHub-hosted skill for `skills add`
+- the npm package for CLI distribution
+
+Release flow:
+
+1. Update `package.json` version.
+2. Commit and push to `main`.
+3. Create and push a tag like `v0.1.0`.
+4. GitHub Actions will:
+   - run validation
+   - publish to npm using `NPM_TOKEN`
+   - create a GitHub Release
+
+Required secrets:
+
+- `NPM_TOKEN` for npm publish

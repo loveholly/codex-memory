@@ -10,7 +10,6 @@ const env = {
     ...process.env,
     CODEX_MEMORY_HOME: path.join(tempRoot, "memory-home"),
     CODEX_MEMORY_RUN_DIR: path.join(tempRoot, "run"),
-    CODEX_MEMORY_QMD_ENABLED: "0",
     CODEX_MEMORY_IDLE_MS: "5000"
 };
 function run(args) {

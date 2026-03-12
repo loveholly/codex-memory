@@ -48,6 +48,7 @@ export class MemoryDaemon {
             this.idleTimer = null;
         }
         this.store.close();
+        this.qmd.close();
         if (this.server.listening) {
             await new Promise((resolve, reject) => {
                 this.server.close((error) => {
@@ -191,7 +192,7 @@ export class MemoryDaemon {
         });
         return {
             ok: true,
-            source: qmdSearch.skipped ? "sqlite" : "sqlite_fallback",
+            source: "sqlite_fallback",
             projectId,
             results,
             qmd: qmdSearch

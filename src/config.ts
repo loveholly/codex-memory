@@ -7,17 +7,13 @@ export interface ResolvedConfig {
   baseDir: string;
   runDir: string;
   dbPath: string;
+  qmdDbPath: string;
   projectionsDir: string;
   host: string;
   port: number;
   endpointPath: string;
   pidPath: string;
   idleMs: number;
-  qmd: {
-    enabled: boolean;
-    upsertTemplate: string;
-    searchTemplate: string;
-  };
 }
 
 export function resolveConfig(env: NodeJS.ProcessEnv = process.env): ResolvedConfig {
@@ -32,17 +28,13 @@ export function resolveConfig(env: NodeJS.ProcessEnv = process.env): ResolvedCon
     baseDir,
     runDir,
     dbPath: env.CODEX_MEMORY_DB || path.join(baseDir, "memory.db"),
+    qmdDbPath: env.CODEX_MEMORY_QMD_DB || path.join(baseDir, "qmd.db"),
     projectionsDir: env.CODEX_MEMORY_PROJECTIONS || path.join(baseDir, "projections"),
     host: env.CODEX_MEMORY_HOST || "127.0.0.1",
     port: Number.isFinite(port) ? port : 0,
     endpointPath: env.CODEX_MEMORY_ENDPOINT || path.join(runDir, "codex-memoryd.json"),
     pidPath: env.CODEX_MEMORY_PID || path.join(runDir, "codex-memoryd.pid"),
-    idleMs: Number.isFinite(idleMs) ? idleMs : 300000,
-    qmd: {
-      enabled: env.CODEX_MEMORY_QMD_ENABLED !== "0",
-      upsertTemplate: env.CODEX_MEMORY_QMD_UPSERT_TEMPLATE || "",
-      searchTemplate: env.CODEX_MEMORY_QMD_SEARCH_TEMPLATE || ""
-    }
+    idleMs: Number.isFinite(idleMs) ? idleMs : 300000
   };
 }
 

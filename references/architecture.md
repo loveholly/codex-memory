@@ -6,7 +6,7 @@
 - `src/daemon.ts`: lazy-start daemon on a local loopback TCP endpoint.
 - `src/store.ts`: canonical SQLite store.
 - `src/projector.ts`: Markdown projection writer for indexing.
-- `src/qmd.ts`: pluggable qmd adapter.
+- `src/qmd.ts`: built-in qmd-compatible search index on SQLite.
 
 ## Lifecycle
 
@@ -28,28 +28,13 @@
 - `project`: cwd-bound decisions, project architecture, open loops, local terminology.
 - `drop`: low-signal or transient conversation output.
 
-## qmd Contract
+## Built-in qmd Layer
 
-`qmd` is optional. The adapter is configured with environment variables:
+`qmd` is built into this package and does not require a separate binary, external service, or user-managed install step.
 
-- `CODEX_MEMORY_QMD_UPSERT_TEMPLATE`
-- `CODEX_MEMORY_QMD_SEARCH_TEMPLATE`
-
-Both templates are shell commands with placeholders. Use unquoted placeholders; the adapter shell-escapes them.
-
-Supported placeholders:
-
-- `{id}`
-- `{scope}`
-- `{project_id}`
-- `{file_path}`
-- `{kind}`
-- `{query}`
-- `{limit}`
-
-Expected `search` output: a JSON array. Each item may be either:
-
-- a fully resolved search result object
-- or an object keyed by `id`, `file_path`, `score`, and `snippet`
-
-If qmd search is unavailable or returns no hits, the daemon falls back to SQLite substring search.
+- Canonical memory remains in `memory.db`
+- qmd index data lives in `qmd.db`
+- Projection files are still written for auditability and skill portability
+- Search flow is:
+  - built-in qmd index first
+  - canonical SQLite fallback second

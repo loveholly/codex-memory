@@ -2,21 +2,18 @@ import type { ResolvedConfig } from "./config.js";
 import type { MemoryItem, QmdSearchResult } from "./types.js";
 export interface QmdUpsertResult {
     ok: boolean;
-    skipped: boolean;
-    reason?: string;
-    stderr?: string;
-    stdout?: string;
+    skipped: false;
 }
 export interface QmdSearchResponse {
     ok: boolean;
-    skipped: boolean;
+    skipped: false;
     results: QmdSearchResult[];
-    stderr?: string;
-    stdout?: string;
 }
 export declare class QmdAdapter {
-    private readonly config;
+    private readonly db;
+    private readonly hasFts;
     constructor(config: ResolvedConfig);
+    close(): void;
     upsert(input: {
         item: MemoryItem;
         filePath: string;
