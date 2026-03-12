@@ -1,12 +1,16 @@
 import os from "node:os";
 import path from "node:path";
 import { mkdirSync } from "node:fs";
+import { slugify } from "./utils.js";
 export function resolveConfig(env = process.env) {
     const codexHome = env.CODEX_HOME || path.join(os.homedir(), ".codex");
     const baseDir = env.CODEX_MEMORY_HOME || path.join(codexHome, "memories", "codex-memory");
     const runDir = env.CODEX_MEMORY_RUN_DIR || path.join(codexHome, "run");
     const idleMs = Number(env.CODEX_MEMORY_IDLE_MS || 300000);
     const port = Number(env.CODEX_MEMORY_PORT || 0);
+    const backupRepoUrl = String(env.CODEX_MEMORY_BACKUP_REPO || "").trim();
+    const backupWorktreeDir = env.CODEX_MEMORY_BACKUP_WORKTREE || path.join(baseDir, "_backup_repo");
+    const backupSnapshotPath = env.CODEX_MEMORY_BACKUP_PATH || path.join("snapshots", slugify(os.hostname()));
     return {
         codexHome,
         baseDir,
@@ -18,7 +22,17 @@ export function resolveConfig(env = process.env) {
         port: Number.isFinite(port) ? port : 0,
         endpointPath: env.CODEX_MEMORY_ENDPOINT || path.join(runDir, "codex-memoryd.json"),
         pidPath: env.CODEX_MEMORY_PID || path.join(runDir, "codex-memoryd.pid"),
-        idleMs: Number.isFinite(idleMs) ? idleMs : 300000
+        idleMs: Number.isFinite(idleMs) ? idleMs : 300000,
+        backup: {
+            enabled: backupRepoUrl.length > 0,
+            repoUrl: backupRepoUrl,
+            branch: env.CODEX_MEMORY_BACKUP_BRANCH || "main",
+            worktreeDir: backupWorktreeDir,
+            snapshotPath: backupSnapshotPath,
+            autoPush: env.CODEX_MEMORY_BACKUP_AUTO_PUSH === "1",
+            gitUserName: env.CODEX_MEMORY_BACKUP_GIT_NAME || "codex-memory",
+            gitUserEmail: env.CODEX_MEMORY_BACKUP_GIT_EMAIL || "codex-memory@localhost"
+        }
     };
 }
 export function ensureRuntimeDirs(config) {

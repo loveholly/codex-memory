@@ -38,3 +38,14 @@
 - Search flow is:
   - packaged qmd FTS index first
   - canonical SQLite fallback second
+
+## Backup Layer
+
+Backup is optional and disabled by default.
+
+- Canonical export comes from `memory.db` via JSON serialization, not by copying live SQLite WAL files
+- Projection files are copied into the backup snapshot
+- `qmd.db` is not part of the backup contract because it is derived
+- The backup target is a git worktree connected to a user-provided private repo
+- Manual flow: `backup push`
+- Optional auto flow: set `CODEX_MEMORY_BACKUP_AUTO_PUSH=1` so mutating CLI commands push after success

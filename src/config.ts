@@ -1,6 +1,18 @@
 import os from "node:os";
 import path from "node:path";
 import { mkdirSync } from "node:fs";
+import { slugify } from "./utils";
+
+export interface BackupConfig {
+  enabled: boolean;
+  repoUrl: string;
+  branch: string;
+  worktreeDir: string;
+  snapshotPath: string;
+  autoPush: boolean;
+  gitUserName: string;
+  gitUserEmail: string;
+}
 
 export interface ResolvedConfig {
   codexHome: string;
@@ -14,6 +26,7 @@ export interface ResolvedConfig {
   endpointPath: string;
   pidPath: string;
   idleMs: number;
+  backup: BackupConfig;
 }
 
 export function resolveConfig(env: NodeJS.ProcessEnv = process.env): ResolvedConfig {
@@ -22,6 +35,9 @@ export function resolveConfig(env: NodeJS.ProcessEnv = process.env): ResolvedCon
   const runDir = env.CODEX_MEMORY_RUN_DIR || path.join(codexHome, "run");
   const idleMs = Number(env.CODEX_MEMORY_IDLE_MS || 300000);
   const port = Number(env.CODEX_MEMORY_PORT || 0);
+  const backupRepoUrl = String(env.CODEX_MEMORY_BACKUP_REPO || "").trim();
+  const backupWorktreeDir = env.CODEX_MEMORY_BACKUP_WORKTREE || path.join(baseDir, "_backup_repo");
+  const backupSnapshotPath = env.CODEX_MEMORY_BACKUP_PATH || path.join("snapshots", slugify(os.hostname()));
 
   return {
     codexHome,
@@ -34,7 +50,17 @@ export function resolveConfig(env: NodeJS.ProcessEnv = process.env): ResolvedCon
     port: Number.isFinite(port) ? port : 0,
     endpointPath: env.CODEX_MEMORY_ENDPOINT || path.join(runDir, "codex-memoryd.json"),
     pidPath: env.CODEX_MEMORY_PID || path.join(runDir, "codex-memoryd.pid"),
-    idleMs: Number.isFinite(idleMs) ? idleMs : 300000
+    idleMs: Number.isFinite(idleMs) ? idleMs : 300000,
+    backup: {
+      enabled: backupRepoUrl.length > 0,
+      repoUrl: backupRepoUrl,
+      branch: env.CODEX_MEMORY_BACKUP_BRANCH || "main",
+      worktreeDir: backupWorktreeDir,
+      snapshotPath: backupSnapshotPath,
+      autoPush: env.CODEX_MEMORY_BACKUP_AUTO_PUSH === "1",
+      gitUserName: env.CODEX_MEMORY_BACKUP_GIT_NAME || "codex-memory",
+      gitUserEmail: env.CODEX_MEMORY_BACKUP_GIT_EMAIL || "codex-memory@localhost"
+    }
   };
 }
 

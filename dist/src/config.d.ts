@@ -1,3 +1,13 @@
+export interface BackupConfig {
+    enabled: boolean;
+    repoUrl: string;
+    branch: string;
+    worktreeDir: string;
+    snapshotPath: string;
+    autoPush: boolean;
+    gitUserName: string;
+    gitUserEmail: string;
+}
 export interface ResolvedConfig {
     codexHome: string;
     baseDir: string;
@@ -10,6 +20,7 @@ export interface ResolvedConfig {
     endpointPath: string;
     pidPath: string;
     idleMs: number;
+    backup: BackupConfig;
 }
 export declare function resolveConfig(env?: NodeJS.ProcessEnv): ResolvedConfig;
 export declare function ensureRuntimeDirs(config: ResolvedConfig): void;

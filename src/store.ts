@@ -22,6 +22,25 @@ interface MemoryRow {
   expires_at: number | null;
 }
 
+interface MemoryLinkRow {
+  src_id: string;
+  dst_id: string;
+  rel: string;
+  created_at: number;
+}
+
+export interface MemoryLink {
+  srcId: string;
+  dstId: string;
+  rel: string;
+  createdAt: number;
+}
+
+export interface MemoryBackupData {
+  items: MemoryItem[];
+  links: MemoryLink[];
+}
+
 function jsonParseTags(text: string): string[] {
   try {
     const value = JSON.parse(text) as unknown;
@@ -196,6 +215,38 @@ export class MemoryStore {
       .all(...clause.params, searchText, searchText, searchText, limit) as unknown as MemoryRow[];
 
     return rows.map((row) => rowToItem(row)).filter((item): item is MemoryItem => item !== null);
+  }
+
+  exportData(): MemoryBackupData {
+    const itemRows = this.db
+      .prepare(
+        `
+          SELECT *
+          FROM memory_items
+          ORDER BY created_at ASC, id ASC
+        `
+      )
+      .all() as unknown as MemoryRow[];
+
+    const linkRows = this.db
+      .prepare(
+        `
+          SELECT src_id, dst_id, rel, created_at
+          FROM memory_links
+          ORDER BY created_at ASC, src_id ASC, dst_id ASC
+        `
+      )
+      .all() as unknown as MemoryLinkRow[];
+
+    return {
+      items: itemRows.map((row) => rowToItem(row)).filter((item): item is MemoryItem => item !== null),
+      links: linkRows.map((row) => ({
+        srcId: row.src_id,
+        dstId: row.dst_id,
+        rel: row.rel,
+        createdAt: row.created_at
+      }))
+    };
   }
 
   remember(item: MemoryItem): MemoryItem {

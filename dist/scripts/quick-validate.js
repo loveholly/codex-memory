@@ -23,6 +23,10 @@ function run(args) {
     return JSON.parse(result.stdout || "{}");
 }
 try {
+    const backupStatus = run(["backup", "status", "--json"]);
+    if (backupStatus.enabled !== false) {
+        throw new Error("Backup status should default to disabled in quick-validate");
+    }
     run(["daemon", "ensure", "--json"]);
     const captured = run([
         "capture",

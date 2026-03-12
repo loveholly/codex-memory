@@ -1,4 +1,14 @@
 import type { MemoryItem } from "./types.js";
+export interface MemoryLink {
+    srcId: string;
+    dstId: string;
+    rel: string;
+    createdAt: number;
+}
+export interface MemoryBackupData {
+    items: MemoryItem[];
+    links: MemoryLink[];
+}
 export interface ContextItems {
     global: MemoryItem[];
     project: MemoryItem[];
@@ -18,6 +28,7 @@ export declare class MemoryStore {
         projectId: string | null;
         limit?: number;
     }): MemoryItem[];
+    exportData(): MemoryBackupData;
     remember(item: MemoryItem): MemoryItem;
     dismiss(id: string, timestamp: number): MemoryItem | null;
     supersede(id: string, byId: string, timestamp: number): MemoryItem | null;

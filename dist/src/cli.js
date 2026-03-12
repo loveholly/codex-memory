@@ -3,14 +3,16 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { getBackupStatus, pushBackup } from "./backup.js";
 import { resolveConfig } from "./config.js";
 import { MemoryDaemon } from "./daemon.js";
 import { projectIdFromCwd, toJson } from "./utils.js";
 const CLI_PATH = fileURLToPath(new URL("../scripts/codex-memory.js", import.meta.url));
 function parseArgs(argv) {
     const command = argv[0] || "help";
-    const daemonSubcommand = command === "daemon" && argv[1] && !argv[1].startsWith("--") ? argv[1] : undefined;
-    const startIndex = daemonSubcommand ? 2 : 1;
+    const needsSubcommand = command === "daemon" || command === "backup";
+    const subcommand = needsSubcommand && argv[1] && !argv[1].startsWith("--") ? argv[1] : undefined;
+    const startIndex = subcommand ? 2 : 1;
     const args = {};
     for (let index = startIndex; index < argv.length; index += 1) {
         const token = argv[index];
@@ -29,7 +31,7 @@ function parseArgs(argv) {
         args[key] = next;
         index += 1;
     }
-    return { command, subcommand: daemonSubcommand, args };
+    return { command, subcommand, args };
 }
 function readStringArg(args, key, fallback = "") {
     const value = args[key];
@@ -136,6 +138,30 @@ function formatSearch(result) {
     })
         .join("\n");
 }
+function formatBackupStatus(result) {
+    return [
+        `enabled=${String(result.enabled || false)}`,
+        `auto_push=${String(result.autoPush || false)}`,
+        `branch=${String(result.branch || "")}`,
+        `repo=${String(result.repoUrl || "")}`,
+        `snapshot=${String(result.snapshotPath || "")}`
+    ].join("\n");
+}
+function formatBackupPush(result) {
+    if (result.ok && result.skipped) {
+        return `backup skipped ${String(result.reason || "")}`.trim();
+    }
+    if (result.ok) {
+        return `backup pushed ${String(result.commit || "")}`.trim();
+    }
+    return `backup failed ${String(result.error || result.reason || "")}`.trim();
+}
+function maybeAutoBackup(config, reason) {
+    if (!config.backup.enabled || !config.backup.autoPush) {
+        return null;
+    }
+    return pushBackup(config, reason);
+}
 export async function main(argv) {
     const parsed = parseArgs(argv);
     const config = resolveConfig();
@@ -149,7 +175,8 @@ export async function main(argv) {
             "  capture --cwd <path> --summary <text> [--body <text>] [--kind <type>] [--scope auto|global|project] [--json]",
             "  promote --id <memory-id> [--json]",
             "  dismiss --id <memory-id> [--json]",
-            "  supersede --id <old-id> --by <new-id> [--json]"
+            "  supersede --id <old-id> --by <new-id> [--json]",
+            "  backup status|push [--json]"
         ].join("\n"), false);
         return;
     }
@@ -187,6 +214,19 @@ export async function main(argv) {
         const result = await socketRequest(config, { command: "stop" });
         print(asJson ? result : "daemon stopping", asJson);
         return;
+    }
+    if (parsed.command === "backup" && parsed.subcommand === "status") {
+        const result = getBackupStatus(config);
+        print(asJson ? result : formatBackupStatus(result), asJson);
+        return;
+    }
+    if (parsed.command === "backup" && parsed.subcommand === "push") {
+        const result = pushBackup(config, readStringArg(parsed.args, "reason", "manual"));
+        print(asJson ? result : formatBackupPush(result), asJson);
+        return;
+    }
+    if (parsed.command === "backup") {
+        throw new Error(`Unknown backup subcommand: ${parsed.subcommand || ""}`.trim());
     }
     await ensureDaemon(config);
     if (parsed.command === "context") {
@@ -229,18 +269,39 @@ export async function main(argv) {
                 projectId: projectIdFromCwd(cwd)
             }
         });
-        print(asJson ? result : result.skipped ? `skipped ${String(result.decision?.reason || "")}` : `captured ${String(result.item?.id || "")}`, asJson);
+        const backup = !result.skipped && result.ok ? maybeAutoBackup(config, "capture") : null;
+        if (asJson) {
+            print(backup ? { ...result, backup } : result, true);
+        }
+        else {
+            const message = result.skipped ? `skipped ${String(result.decision?.reason || "")}` : `captured ${String(result.item?.id || "")}`;
+            print(backup ? `${message}\n${formatBackupPush(backup)}` : message, false);
+        }
         return;
     }
     if (parsed.command === "promote") {
         const result = await socketRequest(config, { command: "promote", args: { id: readStringArg(parsed.args, "id") } });
-        print(asJson ? result : `promoted ${String(result.item?.id || "")}`, asJson);
+        const backup = result.ok ? maybeAutoBackup(config, "promote") : null;
+        if (asJson) {
+            print(backup ? { ...result, backup } : result, true);
+        }
+        else {
+            const message = `promoted ${String(result.item?.id || "")}`;
+            print(backup ? `${message}\n${formatBackupPush(backup)}` : message, false);
+        }
         return;
     }
     if (parsed.command === "dismiss") {
         const id = readStringArg(parsed.args, "id");
         const result = await socketRequest(config, { command: "dismiss", args: { id } });
-        print(asJson ? result : `dismissed ${id}`, asJson);
+        const backup = result.ok ? maybeAutoBackup(config, "dismiss") : null;
+        if (asJson) {
+            print(backup ? { ...result, backup } : result, true);
+        }
+        else {
+            const message = `dismissed ${id}`;
+            print(backup ? `${message}\n${formatBackupPush(backup)}` : message, false);
+        }
         return;
     }
     if (parsed.command === "supersede") {
@@ -251,7 +312,14 @@ export async function main(argv) {
                 by: readStringArg(parsed.args, "by")
             }
         });
-        print(asJson ? result : `superseded ${readStringArg(parsed.args, "id")}`, asJson);
+        const backup = result.ok ? maybeAutoBackup(config, "supersede") : null;
+        if (asJson) {
+            print(backup ? { ...result, backup } : result, true);
+        }
+        else {
+            const message = `superseded ${readStringArg(parsed.args, "id")}`;
+            print(backup ? `${message}\n${formatBackupPush(backup)}` : message, false);
+        }
         return;
     }
     throw new Error(`Unknown command: ${parsed.command}`);

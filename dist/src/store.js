@@ -146,6 +146,31 @@ export class MemoryStore {
             .all(...clause.params, searchText, searchText, searchText, limit);
         return rows.map((row) => rowToItem(row)).filter((item) => item !== null);
     }
+    exportData() {
+        const itemRows = this.db
+            .prepare(`
+          SELECT *
+          FROM memory_items
+          ORDER BY created_at ASC, id ASC
+        `)
+            .all();
+        const linkRows = this.db
+            .prepare(`
+          SELECT src_id, dst_id, rel, created_at
+          FROM memory_links
+          ORDER BY created_at ASC, src_id ASC, dst_id ASC
+        `)
+            .all();
+        return {
+            items: itemRows.map((row) => rowToItem(row)).filter((item) => item !== null),
+            links: linkRows.map((row) => ({
+                srcId: row.src_id,
+                dstId: row.dst_id,
+                rel: row.rel,
+                createdAt: row.created_at
+            }))
+        };
+    }
     remember(item) {
         const existing = this.db
             .prepare(`

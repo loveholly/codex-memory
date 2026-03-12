@@ -49,6 +49,40 @@ Keep the daemon warm during long sessions:
 node ~/.codex/skills/codex-memory/dist/scripts/codex-memory.js daemon heartbeat
 ```
 
+## Optional Backup
+
+You can optionally back up canonical memory plus projections to a private GitHub repo through ordinary `git` push operations.
+
+Required env vars:
+
+```bash
+export CODEX_MEMORY_BACKUP_REPO="git@github.com:you/codex-memory-backup.git"
+```
+
+Optional env vars:
+
+```bash
+export CODEX_MEMORY_BACKUP_BRANCH="main"
+export CODEX_MEMORY_BACKUP_WORKTREE="$HOME/.codex/memories/codex-memory/_backup_repo"
+export CODEX_MEMORY_BACKUP_AUTO_PUSH="1"
+```
+
+Manual commands:
+
+```bash
+node ~/.codex/skills/codex-memory/dist/scripts/codex-memory.js backup status
+node ~/.codex/skills/codex-memory/dist/scripts/codex-memory.js backup push --reason "manual"
+```
+
+What gets backed up:
+
+- canonical memory exported as deterministic JSON
+- Markdown projections grouped by scope/project
+
+What does not need backup:
+
+- `qmd.db` is derived and can be rebuilt locally
+
 ## Development
 
 ```bash

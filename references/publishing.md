@@ -13,6 +13,8 @@ That means the standard installation target is the repo itself.
 
 The npm package also carries the upstream `@tobilu/qmd` dependency, so end users do not need to install `qmd` separately.
 
+Optional backup-to-GitHub uses the system `git` binary plus user-provided credentials or SSH keys. No extra npm dependency is required for that path.
+
 ## Install Syntax
 
 For standard `skills.sh` flows, install from GitHub using the repo path, for example:
