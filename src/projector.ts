@@ -1,8 +1,8 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import type { ResolvedConfig } from "./config.js";
-import type { MemoryItem } from "./types.js";
-import { isoTime } from "./utils.js";
+import type { ResolvedConfig } from "./config";
+import type { MemoryItem } from "./types";
+import { isoTime } from "./utils";
 
 function scopeDir(config: ResolvedConfig, item: MemoryItem): string {
   if (item.scope === "global") {

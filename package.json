@@ -39,7 +39,7 @@
     "package.json"
   ],
   "scripts": {
-    "build": "npx tsc -p tsconfig.json",
+    "build": "npx tsc -p tsconfig.json && node ./dist/scripts/rewrite-import-specifiers.js",
     "prepack": "npm run build",
     "typecheck": "npx tsc -p tsconfig.json --noEmit",
     "test": "npm run build && node --test dist/tests/*.test.js",

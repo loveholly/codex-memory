@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
 import { mkdtempSync, rmSync } from "node:fs";
-import { resolveConfig } from "../src/config.js";
-import { QmdAdapter } from "../src/qmd.js";
-import type { MemoryItem } from "../src/types.js";
+import { resolveConfig } from "../src/config";
+import { QmdAdapter } from "../src/qmd";
+import type { MemoryItem } from "../src/types";
 
 function makeItem(tempRoot: string): MemoryItem {
   return {

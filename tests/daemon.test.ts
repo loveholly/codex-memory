@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
 import { mkdtempSync, rmSync } from "node:fs";
-import { MemoryDaemon } from "../src/daemon.js";
-import { resolveConfig } from "../src/config.js";
+import { MemoryDaemon } from "../src/daemon";
+import { resolveConfig } from "../src/config";
 
 function makeConfig(tempRoot: string) {
   return resolveConfig({

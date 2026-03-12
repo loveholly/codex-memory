@@ -1,5 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
-import type { MemoryItem } from "./types.js";
+import type { MemoryItem } from "./types";
 
 interface MemoryRow {
   id: string;

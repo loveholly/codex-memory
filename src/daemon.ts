@@ -1,12 +1,12 @@
 import net, { type AddressInfo, type Socket } from "node:net";
 import { rmSync, writeFileSync } from "node:fs";
-import type { CaptureArgs, ContextArgs, DaemonEndpoint, DaemonRequest, MemoryItem, QmdSearchResult, SearchArgs } from "./types.js";
-import { ensureRuntimeDirs, type ResolvedConfig } from "./config.js";
-import { judgeCandidate } from "./judge.js";
-import { removeProjection, writeProjection } from "./projector.js";
-import { QmdAdapter, type QmdSearchResponse } from "./qmd.js";
-import { MemoryStore } from "./store.js";
-import { now, projectIdFromCwd } from "./utils.js";
+import type { CaptureArgs, ContextArgs, DaemonEndpoint, DaemonRequest, MemoryItem, QmdSearchResult, SearchArgs } from "./types";
+import { ensureRuntimeDirs, type ResolvedConfig } from "./config";
+import { judgeCandidate } from "./judge";
+import { removeProjection, writeProjection } from "./projector";
+import { QmdAdapter, type QmdSearchResponse } from "./qmd";
+import { MemoryStore } from "./store";
+import { now, projectIdFromCwd } from "./utils";
 
 export interface SearchResponse {
   ok: true;

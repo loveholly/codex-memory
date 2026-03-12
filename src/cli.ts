@@ -3,10 +3,10 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { resolveConfig, type ResolvedConfig } from "./config.js";
-import { MemoryDaemon } from "./daemon.js";
-import type { CliArgs, CliArgValue, DaemonEndpoint, DaemonRequest } from "./types.js";
-import { projectIdFromCwd, toJson } from "./utils.js";
+import { resolveConfig, type ResolvedConfig } from "./config";
+import { MemoryDaemon } from "./daemon";
+import type { CliArgs, CliArgValue, DaemonEndpoint, DaemonRequest } from "./types";
+import { projectIdFromCwd, toJson } from "./utils";
 
 const CLI_PATH = fileURLToPath(new URL("../scripts/codex-memory.js", import.meta.url));
 

@@ -1,8 +1,8 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import type { ResolvedConfig } from "./config.js";
-import type { MemoryItem, QmdSearchResult } from "./types.js";
+import type { ResolvedConfig } from "./config";
+import type { MemoryItem, QmdSearchResult } from "./types";
 
 export interface QmdUpsertResult {
   ok: boolean;

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { judgeCandidate } from "../src/judge.js";
+import { judgeCandidate } from "../src/judge";
 
 test("judgeCandidate routes durable repo workflow to project scope", () => {
   const decision = judgeCandidate({

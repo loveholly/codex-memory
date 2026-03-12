@@ -1,5 +1,5 @@
-import type { JudgeDecision, MemoryCandidate, MemoryItem, MemoryKind, RequestedScope } from "./types.js";
-import { clamp, hashText, normalizeText, now, projectIdFromCwd, stableDedupeKey } from "./utils.js";
+import type { JudgeDecision, MemoryCandidate, MemoryItem, MemoryKind, RequestedScope } from "./types";
+import { clamp, hashText, normalizeText, now, projectIdFromCwd, stableDedupeKey } from "./utils";
 
 const GLOBAL_HINTS: RegExp[] = [
   /以后都/u,

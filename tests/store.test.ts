@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
 import { mkdtempSync, rmSync } from "node:fs";
-import { MemoryStore } from "../src/store.js";
-import type { MemoryItem } from "../src/types.js";
+import { MemoryStore } from "../src/store";
+import type { MemoryItem } from "../src/types";
 
 function makeItem(overrides: Partial<MemoryItem> = {}): MemoryItem {
   return {
