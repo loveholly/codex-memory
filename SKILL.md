@@ -11,7 +11,8 @@ Use this skill for durable memory, not transient notes.
 
 1. Resolve the skill directory from this `SKILL.md`.
 2. Run the local CLI with `node "<skill-dir>/dist/scripts/codex-memory.js" ...`.
-3. Let the CLI lazily start the daemon when needed.
+3. The packaged skill already carries its `macOS arm64` qmd runtime in `dist/vendor`, so no extra install step is required after `skills add`.
+4. Let the CLI lazily start the daemon when needed.
 
 ## Workflow
 

@@ -1,8 +1,12 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
-import { createStore, type QMDStore, type SearchResult } from "@tobilu/qmd";
+import type { QMDStore, SearchResult } from "@tobilu/qmd";
 import type { ResolvedConfig } from "./config";
 import type { MemoryItem, MemoryScope, QmdSearchResult } from "./types";
+
+type QmdModule = {
+  createStore(options: { dbPath: string }): Promise<QMDStore>;
+};
 
 export interface QmdUpsertResult {
   ok: boolean;
@@ -15,6 +19,14 @@ export interface QmdSearchResponse {
   skipped: false;
   results: QmdSearchResult[];
   error?: string;
+}
+
+function vendoredQmdEntryUrl(): URL {
+  return new URL("../vendor/node_modules/@tobilu/qmd/dist/index.js", import.meta.url);
+}
+
+async function loadQmdModule(): Promise<QmdModule> {
+  return (await import(vendoredQmdEntryUrl().href)) as QmdModule;
 }
 
 function scopeDirectory(config: ResolvedConfig, scope: MemoryScope, projectId: string | null): string {
@@ -84,7 +96,7 @@ export class QmdAdapter {
 
   private async getStore(): Promise<QMDStore> {
     if (!this.storePromise) {
-      this.storePromise = createStore({ dbPath: this.config.qmdDbPath });
+      this.storePromise = loadQmdModule().then((module) => module.createStore({ dbPath: this.config.qmdDbPath }));
     }
 
     try {

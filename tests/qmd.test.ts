@@ -35,7 +35,7 @@ function makeItem(tempRoot: string): MemoryItem {
   };
 }
 
-test("qmd adapter indexes and searches using the packaged @tobilu/qmd dependency", async () => {
+test("qmd adapter indexes and searches using the vendored @tobilu/qmd runtime", async () => {
   const tempRoot = mkdtempSync(path.join(os.tmpdir(), "codex-memory-qmd-"));
   const config = resolveConfig({
     ...process.env,

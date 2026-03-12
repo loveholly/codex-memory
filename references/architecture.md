@@ -6,7 +6,7 @@
 - `src/daemon.ts`: lazy-start daemon on a local loopback TCP endpoint.
 - `src/store.ts`: canonical SQLite store.
 - `src/projector.ts`: Markdown projection writer for indexing.
-- `src/qmd.ts`: adapter around the upstream `@tobilu/qmd` store.
+- `src/qmd.ts`: adapter that loads a vendored upstream `@tobilu/qmd` runtime from `dist/vendor`.
 
 ## Lifecycle
 
@@ -48,7 +48,7 @@ Operational notes:
 
 ## Built-in qmd Layer
 
-`qmd` is provided by the real upstream `@tobilu/qmd` dependency and is installed transitively with this package. Users do not need a separate `qmd` binary, external service, or manual install step.
+`qmd` is provided by the real upstream `@tobilu/qmd` runtime, vendored into `dist/vendor/node_modules` for `macOS arm64`. A GitHub-installed skill therefore remains runnable after a plain `skills add`, without running npm in the installed skill directory.
 
 - Canonical memory remains in `memory.db`
 - qmd index data lives in `qmd.db`
@@ -56,6 +56,12 @@ Operational notes:
 - Search flow is:
   - packaged qmd FTS index first
   - canonical SQLite fallback second
+
+Packaging notes:
+
+- `npm run build` copies the qmd runtime dependency closure into `dist/vendor`
+- the vendored runtime includes native binaries required on the current build machine
+- the current repo distribution target is `macOS arm64`
 
 ## Backup Layer
 

@@ -6,10 +6,10 @@
 - idle shutdown
 - project/global memory scopes
 - multi-dimensional memory typing across `kind`, `lifecycle`, `sensitivity`, and `retrieval`
-- packaged `@tobilu/qmd` indexing and search
+- vendored `@tobilu/qmd` indexing and search runtime for `macOS arm64`
 - TypeScript source, compiled `dist/` runtime, and tests
 
-The real upstream qmd dependency is bundled through this package as `@tobilu/qmd`. Users do not need a separate `qmd` install, sidecar service, or manual setup.
+The skill ships a prepacked `macOS arm64` qmd runtime under `dist/vendor/node_modules`. After `npx skills add loveholly/codex-memory`, users do not need to run `npm install`, build anything, or separately install `qmd`.
 
 ## Install
 
@@ -18,6 +18,11 @@ Skill install:
 ```bash
 npx skills add loveholly/codex-memory
 ```
+
+Platform note:
+
+- the GitHub skill is currently packaged for `macOS arm64`
+- the npm package remains the canonical source package for broader environments
 
 CLI install from npm after publish:
 
@@ -111,6 +116,12 @@ npm run smoke
 ```
 
 `npm run smoke` requires an environment that allows local loopback listeners.
+
+## Runtime Packaging
+
+- `src/qmd.ts` loads qmd from `dist/vendor/node_modules/@tobilu/qmd`
+- `npm run build` now copies the full `macOS arm64` runtime closure required by qmd into `dist/vendor`
+- this includes native artifacts such as `better_sqlite3.node`, `sqlite-vec-darwin-arm64/vec0.dylib`, and the installed `node-llama-cpp` runtime packages
 
 ## Release
 

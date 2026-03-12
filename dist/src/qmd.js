@@ -1,6 +1,11 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
-import { createStore } from "@tobilu/qmd";
+function vendoredQmdEntryUrl() {
+    return new URL("../vendor/node_modules/@tobilu/qmd/dist/index.js", import.meta.url);
+}
+async function loadQmdModule() {
+    return (await import(vendoredQmdEntryUrl().href));
+}
 function scopeDirectory(config, scope, projectId) {
     if (scope === "global") {
         return path.join(config.projectionsDir, "global");
@@ -56,7 +61,7 @@ export class QmdAdapter {
     }
     async getStore() {
         if (!this.storePromise) {
-            this.storePromise = createStore({ dbPath: this.config.qmdDbPath });
+            this.storePromise = loadQmdModule().then((module) => module.createStore({ dbPath: this.config.qmdDbPath }));
         }
         try {
             return await this.storePromise;
