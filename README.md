@@ -5,10 +5,10 @@
 - lazy-start daemon
 - idle shutdown
 - project/global memory scopes
-- built-in qmd indexing and search
+- packaged `@tobilu/qmd` indexing and search
 - TypeScript source, compiled `dist/` runtime, and tests
 
-No external `qmd` binary, sidecar service, or manual install step is required.
+The real upstream qmd dependency is bundled through this package as `@tobilu/qmd`. Users do not need a separate `qmd` install, sidecar service, or manual setup.
 
 ## Install
 
@@ -39,7 +39,7 @@ node ~/.codex/skills/codex-memory/dist/scripts/codex-memory.js capture \
   --cwd "$PWD" \
   --scope auto \
   --kind decision \
-  --summary "Use built-in qmd indexing for memory search" \
+  --summary "Use packaged qmd indexing for memory search" \
   --body "Users should not install or configure qmd separately."
 ```
 

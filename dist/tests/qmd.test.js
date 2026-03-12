@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { mkdtempSync, rmSync } from "node:fs";
 import { resolveConfig } from "../src/config.js";
+import { writeProjection } from "../src/projector.js";
 import { QmdAdapter } from "../src/qmd.js";
 function makeItem(tempRoot) {
     return {
@@ -27,7 +28,7 @@ function makeItem(tempRoot) {
         expiresAt: null
     };
 }
-test("qmd adapter indexes and searches without external binaries", () => {
+test("qmd adapter indexes and searches using the packaged @tobilu/qmd dependency", async () => {
     const tempRoot = mkdtempSync(path.join(os.tmpdir(), "codex-memory-qmd-"));
     const config = resolveConfig({
         ...process.env,
@@ -37,8 +38,9 @@ test("qmd adapter indexes and searches without external binaries", () => {
     const qmd = new QmdAdapter(config);
     try {
         const item = makeItem(tempRoot);
-        qmd.upsert({ item, filePath: path.join(tempRoot, "projection.md") });
-        const result = qmd.search({
+        const projectionPath = writeProjection(config, item);
+        await qmd.upsert({ item, filePath: projectionPath });
+        const result = await qmd.search({
             query: "detail context",
             scope: "auto",
             projectId: "repo-1",
@@ -49,7 +51,7 @@ test("qmd adapter indexes and searches without external binaries", () => {
         assert.equal(result.results[0]?.id, item.id);
     }
     finally {
-        qmd.close();
+        await qmd.close();
         rmSync(tempRoot, { recursive: true, force: true });
     }
 });

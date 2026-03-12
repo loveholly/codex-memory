@@ -11,6 +11,8 @@ This repo is intentionally structured so the repo root is the skill root:
 
 That means the standard installation target is the repo itself.
 
+The npm package also carries the upstream `@tobilu/qmd` dependency, so end users do not need to install `qmd` separately.
+
 ## Install Syntax
 
 For standard `skills.sh` flows, install from GitHub using the repo path, for example:

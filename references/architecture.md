@@ -6,7 +6,7 @@
 - `src/daemon.ts`: lazy-start daemon on a local loopback TCP endpoint.
 - `src/store.ts`: canonical SQLite store.
 - `src/projector.ts`: Markdown projection writer for indexing.
-- `src/qmd.ts`: built-in qmd-compatible search index on SQLite.
+- `src/qmd.ts`: adapter around the upstream `@tobilu/qmd` store.
 
 ## Lifecycle
 
@@ -30,11 +30,11 @@
 
 ## Built-in qmd Layer
 
-`qmd` is built into this package and does not require a separate binary, external service, or user-managed install step.
+`qmd` is provided by the real upstream `@tobilu/qmd` dependency and is installed transitively with this package. Users do not need a separate `qmd` binary, external service, or manual install step.
 
 - Canonical memory remains in `memory.db`
 - qmd index data lives in `qmd.db`
 - Projection files are still written for auditability and skill portability
 - Search flow is:
-  - built-in qmd index first
+  - packaged qmd FTS index first
   - canonical SQLite fallback second

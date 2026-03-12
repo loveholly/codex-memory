@@ -1,27 +1,32 @@
 import type { ResolvedConfig } from "./config.js";
-import type { MemoryItem, QmdSearchResult } from "./types.js";
+import type { MemoryItem, MemoryScope, QmdSearchResult } from "./types.js";
 export interface QmdUpsertResult {
     ok: boolean;
     skipped: false;
+    error?: string;
 }
 export interface QmdSearchResponse {
     ok: boolean;
     skipped: false;
     results: QmdSearchResult[];
+    error?: string;
 }
 export declare class QmdAdapter {
-    private readonly db;
-    private readonly hasFts;
+    private readonly config;
+    private storePromise;
     constructor(config: ResolvedConfig);
-    close(): void;
+    private getStore;
+    close(): Promise<void>;
+    private ensureCollection;
+    refreshScope(scope: MemoryScope, projectId: string | null): Promise<QmdUpsertResult>;
     upsert(input: {
         item: MemoryItem;
         filePath: string;
-    }): QmdUpsertResult;
+    }): Promise<QmdUpsertResult>;
     search(input: {
         query: string;
         scope: "auto" | "global" | "project";
         projectId: string | null;
         limit: number;
-    }): QmdSearchResponse;
+    }): Promise<QmdSearchResponse>;
 }

@@ -1,202 +1,185 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
+import { createStore, type QMDStore, type SearchResult } from "@tobilu/qmd";
 import type { ResolvedConfig } from "./config";
-import type { MemoryItem, QmdSearchResult } from "./types";
+import type { MemoryItem, MemoryScope, QmdSearchResult } from "./types";
 
 export interface QmdUpsertResult {
   ok: boolean;
   skipped: false;
+  error?: string;
 }
 
 export interface QmdSearchResponse {
   ok: boolean;
   skipped: false;
   results: QmdSearchResult[];
+  error?: string;
+}
+
+function scopeDirectory(config: ResolvedConfig, scope: MemoryScope, projectId: string | null): string {
+  if (scope === "global") {
+    return path.join(config.projectionsDir, "global");
+  }
+
+  return path.join(config.projectionsDir, "projects", projectId || "unknown-project");
+}
+
+function collectionName(scope: MemoryScope, projectId: string | null): string {
+  if (scope === "global") {
+    return "global";
+  }
+
+  return `project-${projectId || "unknown-project"}`;
+}
+
+function collectionNamesForSearch(scope: "auto" | "global" | "project", projectId: string | null): string[] {
+  if (scope === "global") {
+    return [collectionName("global", null)];
+  }
+
+  if (scope === "project") {
+    return [collectionName("project", projectId)];
+  }
+
+  return [collectionName("global", null), collectionName("project", projectId)];
+}
+
+function summarizeBody(body: string | undefined, maxLength = 220): string | undefined {
+  const normalized = String(body || "").replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return undefined;
+  }
+
+  return normalized.length <= maxLength ? normalized : `${normalized.slice(0, maxLength - 1)}…`;
+}
+
+function toSearchResult(row: SearchResult): QmdSearchResult {
+  const snippet = summarizeBody(row.body || row.context || "");
+
+  if (snippet) {
+    return {
+      id: path.basename(row.filepath, path.extname(row.filepath)),
+      file_path: row.filepath,
+      summary: row.title,
+      snippet,
+      score: row.score
+    };
+  }
+
+  return {
+    id: path.basename(row.filepath, path.extname(row.filepath)),
+    file_path: row.filepath,
+    summary: row.title,
+    score: row.score
+  };
 }
 
 export class QmdAdapter {
-  private readonly db: DatabaseSync;
-  private readonly hasFts: boolean;
+  private storePromise: Promise<QMDStore> | null = null;
 
-  constructor(config: ResolvedConfig) {
+  constructor(private readonly config: ResolvedConfig) {
     mkdirSync(path.dirname(config.qmdDbPath), { recursive: true });
-    this.db = new DatabaseSync(config.qmdDbPath);
-    this.db.exec(`
-      PRAGMA journal_mode = WAL;
-      CREATE TABLE IF NOT EXISTS qmd_documents (
-        id TEXT PRIMARY KEY,
-        scope TEXT NOT NULL,
-        project_id TEXT,
-        kind TEXT NOT NULL,
-        file_path TEXT NOT NULL,
-        summary TEXT NOT NULL,
-        body TEXT NOT NULL DEFAULT '',
-        tags_json TEXT NOT NULL DEFAULT '[]',
-        updated_at INTEGER NOT NULL
-      );
-      CREATE INDEX IF NOT EXISTS idx_qmd_documents_scope
-      ON qmd_documents (scope, project_id, updated_at DESC);
-    `);
+  }
 
-    let hasFts = true;
+  private async getStore(): Promise<QMDStore> {
+    if (!this.storePromise) {
+      this.storePromise = createStore({ dbPath: this.config.qmdDbPath });
+    }
+
     try {
-      this.db.exec(`
-        CREATE VIRTUAL TABLE IF NOT EXISTS qmd_documents_fts
-        USING fts5(id UNINDEXED, summary, body, tags);
-      `);
-    } catch {
-      hasFts = false;
+      return await this.storePromise;
+    } catch (error) {
+      this.storePromise = null;
+      throw error;
+    }
+  }
+
+  async close(): Promise<void> {
+    if (!this.storePromise) {
+      return;
     }
 
-    this.hasFts = hasFts;
+    const store = await this.storePromise;
+    this.storePromise = null;
+    await store.close();
   }
 
-  close(): void {
-    this.db.close();
+  private async ensureCollection(scope: MemoryScope, projectId: string | null): Promise<string> {
+    const store = await this.getStore();
+    const dirPath = scopeDirectory(this.config, scope, projectId);
+    const name = collectionName(scope, projectId);
+    mkdirSync(dirPath, { recursive: true });
+    await store.addCollection(name, { path: dirPath, pattern: "**/*.md" });
+    return name;
   }
 
-  upsert(input: { item: MemoryItem; filePath: string }): QmdUpsertResult {
-    this.db
-      .prepare(
-        `
-          INSERT INTO qmd_documents (
-            id, scope, project_id, kind, file_path, summary, body, tags_json, updated_at
-          )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-          ON CONFLICT(id) DO UPDATE SET
-            scope = excluded.scope,
-            project_id = excluded.project_id,
-            kind = excluded.kind,
-            file_path = excluded.file_path,
-            summary = excluded.summary,
-            body = excluded.body,
-            tags_json = excluded.tags_json,
-            updated_at = excluded.updated_at
-        `
-      )
-      .run(
-        input.item.id,
-        input.item.scope,
-        input.item.projectId,
-        input.item.kind,
-        input.filePath,
-        input.item.summary,
-        input.item.body,
-        JSON.stringify(input.item.tags),
-        input.item.updatedAt
-      );
+  async refreshScope(scope: MemoryScope, projectId: string | null): Promise<QmdUpsertResult> {
+    try {
+      const store = await this.getStore();
+      const name = await this.ensureCollection(scope, projectId);
+      await store.update({ collections: [name] });
+      return { ok: true, skipped: false };
+    } catch (error) {
+      return {
+        ok: false,
+        skipped: false,
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
 
-    if (this.hasFts) {
-      this.db.prepare("DELETE FROM qmd_documents_fts WHERE id = ?").run(input.item.id);
-      this.db
-        .prepare("INSERT INTO qmd_documents_fts (id, summary, body, tags) VALUES (?, ?, ?, ?)")
-        .run(input.item.id, input.item.summary, input.item.body, input.item.tags.join(" "));
+  async upsert(input: { item: MemoryItem; filePath: string }): Promise<QmdUpsertResult> {
+    void input.filePath;
+    return this.refreshScope(input.item.scope, input.item.projectId);
+  }
+
+  async search(input: { query: string; scope: "auto" | "global" | "project"; projectId: string | null; limit: number }): Promise<QmdSearchResponse> {
+    const query = input.query.trim();
+    if (!query) {
+      return { ok: true, skipped: false, results: [] };
     }
 
-    return { ok: true, skipped: false };
-  }
+    try {
+      const store = await this.getStore();
+      const configuredCollections = await store.listCollections();
+      const configuredNames = new Set(configuredCollections.map((collection) => collection.name));
+      const targetCollections = collectionNamesForSearch(input.scope, input.projectId).filter((name) => configuredNames.has(name));
 
-  search(input: { query: string; scope: "auto" | "global" | "project"; projectId: string | null; limit: number }): QmdSearchResponse {
-    if (this.hasFts) {
-      const tokens = input.query
-        .trim()
-        .split(/\s+/)
-        .filter(Boolean)
-        .map((token) => `${token.replace(/"/g, '""')}*`)
-        .join(" OR ");
-
-      if (tokens) {
-        const rows = this.db
-          .prepare(
-            `
-              SELECT
-                d.id,
-                d.file_path,
-                d.summary,
-                bm25(qmd_documents_fts) AS score
-              FROM qmd_documents_fts
-              JOIN qmd_documents d ON d.id = qmd_documents_fts.id
-              WHERE qmd_documents_fts MATCH ?
-                AND (
-                  ? = 'global'
-                  AND d.scope = 'global'
-                  OR ? = 'project'
-                  AND d.scope = 'project'
-                  AND coalesce(d.project_id, '') = coalesce(?, '')
-                  OR ? = 'auto'
-                  AND (
-                    d.scope = 'global'
-                    OR (d.scope = 'project' AND coalesce(d.project_id, '') = coalesce(?, ''))
-                  )
-                )
-              ORDER BY score, d.updated_at DESC
-              LIMIT ?
-            `
-          )
-          .all(tokens, input.scope, input.scope, input.projectId, input.scope, input.projectId, input.limit) as unknown as Array<{
-          id: string;
-          file_path: string;
-          summary: string;
-          score: number;
-        }>;
-
-        return {
-          ok: true,
-          skipped: false,
-          results: rows.map((row) => ({
-            id: row.id,
-            file_path: row.file_path,
-            summary: row.summary,
-            score: row.score
-          }))
-        };
+      if (targetCollections.length === 0) {
+        return { ok: true, skipped: false, results: [] };
       }
+
+      let rows: SearchResult[];
+      if (targetCollections.length === 1) {
+        const collection = targetCollections[0];
+        rows = collection
+          ? await store.searchLex(query, {
+              collection,
+              limit: input.limit
+            })
+          : [];
+      } else {
+        const resultLimit = Math.max(input.limit * 8, 50);
+        const allowed = new Set(targetCollections);
+        rows = store.internal
+          .searchFTS(query, resultLimit)
+          .filter((row) => allowed.has(row.collectionName))
+          .slice(0, input.limit);
+      }
+
+      return {
+        ok: true,
+        skipped: false,
+        results: rows.map(toSearchResult)
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        skipped: false,
+        results: [],
+        error: error instanceof Error ? error.message : String(error)
+      };
     }
-
-    const searchText = `%${input.query.toLowerCase()}%`;
-    const rows = this.db
-      .prepare(
-        `
-          SELECT id, file_path, summary, updated_at
-          FROM qmd_documents
-          WHERE (
-            ? = 'global'
-            AND scope = 'global'
-            OR ? = 'project'
-            AND scope = 'project'
-            AND coalesce(project_id, '') = coalesce(?, '')
-            OR ? = 'auto'
-            AND (
-              scope = 'global'
-              OR (scope = 'project' AND coalesce(project_id, '') = coalesce(?, ''))
-            )
-          )
-            AND (
-              lower(summary) LIKE ?
-              OR lower(body) LIKE ?
-              OR lower(tags_json) LIKE ?
-            )
-          ORDER BY updated_at DESC
-          LIMIT ?
-        `
-      )
-      .all(input.scope, input.scope, input.projectId, input.scope, input.projectId, searchText, searchText, searchText, input.limit) as unknown as Array<{
-      id: string;
-      file_path: string;
-      summary: string;
-      updated_at: number;
-    }>;
-
-    return {
-      ok: true,
-      skipped: false,
-      results: rows.map((row) => ({
-        id: row.id,
-        file_path: row.file_path,
-        summary: row.summary,
-        score: row.updated_at
-      }))
-    };
   }
 }

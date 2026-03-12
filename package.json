@@ -1,7 +1,7 @@
 {
   "name": "codex-memory",
   "version": "0.1.0",
-  "description": "Cross-session memory skill for Codex with a lazy-start daemon, CLI, and built-in qmd indexing.",
+  "description": "Cross-session memory skill for Codex with a lazy-start daemon, CLI, and packaged @tobilu/qmd indexing.",
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -50,5 +50,8 @@
   "devDependencies": {
     "@types/node": "^25.4.0",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@tobilu/qmd": "^2.0.1"
   }
 }

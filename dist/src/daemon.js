@@ -48,7 +48,7 @@ export class MemoryDaemon {
             this.idleTimer = null;
         }
         this.store.close();
-        this.qmd.close();
+        await this.qmd.close();
         if (this.server.listening) {
             await new Promise((resolve, reject) => {
                 this.server.close((error) => {
@@ -144,24 +144,24 @@ export class MemoryDaemon {
                 return { ok: false, error: "unknown_command" };
         }
     }
-    capture(args) {
+    async capture(args) {
         const decision = judgeCandidate(args);
         if (!decision.remember) {
             return { ok: true, skipped: true, decision };
         }
         const item = this.store.remember(decision.item);
         const filePath = writeProjection(this.config, item);
-        const qmd = this.qmd.upsert({ item, filePath });
+        const qmd = await this.qmd.upsert({ item, filePath });
         return { ok: true, skipped: false, decision, item, projectionPath: filePath, qmd };
     }
-    context(args) {
+    async context(args) {
         const projectId = args.cwd ? projectIdFromCwd(args.cwd) : null;
         const context = this.store.listContext({ projectId, limit: readLimit(args.limit, 5) });
         const relatedArgs = args.cwd
             ? { cwd: args.cwd, query: args.query || "", scope: "auto", limit: readLimit(args.limit, 5) }
             : { query: args.query || "", scope: "auto", limit: readLimit(args.limit, 5) };
         const related = args.query
-            ? this.search(relatedArgs)
+            ? await this.search(relatedArgs)
             : { ok: true, source: "none", projectId, results: [] };
         return {
             ok: true,
@@ -172,10 +172,10 @@ export class MemoryDaemon {
             relatedSource: related.source
         };
     }
-    search(args) {
+    async search(args) {
         const projectId = args.cwd ? projectIdFromCwd(args.cwd) : null;
         const scope = args.scope || "auto";
-        const qmdSearch = this.qmd.search({
+        const qmdSearch = await this.qmd.search({
             query: args.query || "",
             scope,
             projectId,
@@ -198,15 +198,17 @@ export class MemoryDaemon {
             qmd: qmdSearch
         };
     }
-    dismiss(id) {
+    async dismiss(id) {
         const existing = this.store.getItem(id);
         if (!existing) {
             return { ok: false, error: "not_found" };
         }
         removeProjection(this.config, existing);
-        return { ok: true, item: this.store.dismiss(id, now()) };
+        const item = this.store.dismiss(id, now());
+        const qmd = await this.qmd.refreshScope(existing.scope, existing.projectId);
+        return { ok: true, item, qmd };
     }
-    promote(id) {
+    async promote(id) {
         const existing = this.store.getItem(id);
         if (!existing) {
             return { ok: false, error: "not_found" };
@@ -224,16 +226,19 @@ export class MemoryDaemon {
         };
         const item = this.store.promote(existing.id, promoted);
         const filePath = writeProjection(this.config, item);
-        const qmd = this.qmd.upsert({ item, filePath });
+        await this.qmd.refreshScope(existing.scope, existing.projectId);
+        const qmd = await this.qmd.upsert({ item, filePath });
         return { ok: true, item, projectionPath: filePath, qmd };
     }
-    supersede(id, byId) {
+    async supersede(id, byId) {
         const existing = this.store.getItem(id);
         if (!existing) {
             return { ok: false, error: "not_found" };
         }
         removeProjection(this.config, existing);
-        return { ok: true, item: this.store.supersede(id, byId, now()) };
+        const item = this.store.supersede(id, byId, now());
+        const qmd = await this.qmd.refreshScope(existing.scope, existing.projectId);
+        return { ok: true, item, qmd };
     }
 }
 //# sourceMappingURL=daemon.js.map
